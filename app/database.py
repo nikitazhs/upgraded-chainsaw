@@ -1,18 +1,37 @@
+"""
+Модуль для настройки подключения к базе данных с использованием SQLAlchemy.
+
+Данный модуль:
+- Получает URL подключения из переменной окружения DATABASE_URL (по умолчанию используется SQLite).
+- Создает объект engine для подключения к базе данных.
+- Настраивает фабрику сессий SessionLocal для создания сессий.
+- Определяет базовый класс Base для всех моделей SQLAlchemy.
+
+Использование:
+    from .database import SessionLocal, Base, engine
+    # Получить сессию:
+    db = SessionLocal()
+"""
+
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# URL подключения к базе данных. Здесь используется SQLite (файл notes.db в корне проекта).
-SQLALCHEMY_DATABASE_URL = "sqlite:///./notes.db"
+# Получаем URL подключения из переменной окружения или используем SQLite по умолчанию
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./notes.db")
 
-# Создаем объект Engine для подключения к базе данных.
-# Для SQLite используется параметр connect_args, чтобы отключить проверку потоков.
+# Для SQLite используем параметр connect_args, чтобы отключить проверку потоков
+connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+
+# Создаем объект engine с параметром future=True для использования нового API SQLAlchemy 2.0
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL,
+    connect_args=connect_args,
+    future=True
 )
 
-# Создаем SessionLocal - класс для создания сессий подключения к базе данных.
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Создаем SessionLocal - фабрику сессий с использованием нового API
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
 
-# Базовый класс для моделей, от которого будут наследоваться все модели SQLAlchemy.
+# Определяем базовый класс для моделей
 Base = declarative_base()

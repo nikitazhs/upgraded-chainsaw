@@ -1,41 +1,65 @@
+from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from .database import Base
-from datetime import datetime
 
-# Модель пользователя (таблица users)
 class User(Base):
-    __tablename__ = "users"  # Название таблицы
+    """
+    Модель пользователя (таблица 'users').
 
-    # Уникальный идентификатор пользователя
+    Атрибуты:
+        id: Уникальный идентификатор пользователя.
+        username: Уникальное имя пользователя.
+        hashed_password: Хэшированный пароль.
+        role: Роль пользователя (например, "User" или "Admin").
+        notes: Список заметок, принадлежащих пользователю.
+    """
+    __tablename__ = "users"
+
     id = Column(Integer, primary_key=True, index=True)
-    # Имя пользователя. Должно быть уникальным.
-    username = Column(String, unique=True, index=True, nullable=False)
-    # Хэшированный пароль пользователя
-    hashed_password = Column(String, nullable=False)
-    # Роль пользователя: "User" или "Admin". По умолчанию "User".
-    role = Column(String, default="User")
-    # Определяем связь "один ко многим": пользователь может иметь несколько заметок.
-    notes = relationship("Note", back_populates="owner")
+    # Ограничиваем длину username до 150 символов для оптимизации хранения
+    username = Column(String(150), unique=True, index=True, nullable=False)
+    # Рекомендуется задать ограничение длины для хэшированного пароля (например, 128 символов)
+    hashed_password = Column(String(128), nullable=False)
+    # Ограничиваем длину поля role для экономии места
+    role = Column(String(50), default="User", nullable=False)
 
-# Модель заметки (таблица notes)
+    # Связь "один ко многим": пользователь может иметь несколько заметок.
+    # Каскадное удаление гарантирует, что заметки пользователя удаляются вместе с ним.
+    notes = relationship("Note", back_populates="owner", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
+
+
 class Note(Base):
-    __tablename__ = "notes"  # Название таблицы
+    """
+    Модель заметки (таблица 'notes').
 
-    # Уникальный идентификатор заметки
+    Атрибуты:
+        id: Уникальный идентификатор заметки.
+        title: Заголовок заметки.
+        body: Текст заметки.
+        owner_id: Внешний ключ, указывающий на пользователя, создавшего заметку.
+        is_deleted: Флаг мягкого удаления заметки.
+        created_at: Дата и время создания заметки.
+        updated_at: Дата и время последнего обновления заметки.
+        owner: Объект пользователя, владеющий заметкой.
+    """
+    __tablename__ = "notes"
+
     id = Column(Integer, primary_key=True, index=True)
-    # Заголовок заметки (ограничение в 256 символов накладывается через Pydantic-схему)
     title = Column(String(256), nullable=False)
-    # Текст заметки (ограничение в 65536 символов накладывается через Pydantic-схему)
     body = Column(String(65536), nullable=False)
-    # Внешний ключ, ссылающийся на пользователя, создавшего заметку
-    owner_id = Column(Integer, ForeignKey("users.id"))
-    # Флаг мягкого удаления: если True, заметка считается удалённой.
-    is_deleted = Column(Boolean, default=False)
-    # Дата создания заметки. По умолчанию — текущее время.
-    created_at = Column(DateTime, default=datetime.utcnow)
-    # Дата последнего обновления заметки. Автоматически обновляется при изменении.
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Обратная связь: заметка принадлежит конкретному пользователю.
+    # Обратная связь: каждая заметка принадлежит конкретному пользователю.
     owner = relationship("User", back_populates="notes")
+
+    def __repr__(self) -> str:
+        # Ограничиваем длину заголовка для вывода, чтобы не перегружать консоль
+        title_preview = self.title if len(self.title) <= 20 else self.title[:17] + "..."
+        return f"<Note(id={self.id}, title='{title_preview}', owner_id={self.owner_id}, is_deleted={self.is_deleted})>"

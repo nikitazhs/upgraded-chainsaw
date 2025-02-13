@@ -1,11 +1,31 @@
-import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
+from datetime import timedelta
 
-# Секретный ключ для генерации JWT-токенов.
-# Можно задавать через переменные окружения для повышения безопасности.
-SECRET_KEY = os.environ.get("SECRET_KEY", "you_secret_key")
 
-# Алгоритм, используемый для шифрования и подписи JWT.
-ALGORITHM = "HS256"
+class Settings(BaseSettings):
+    # Секретный ключ для генерации JWT-токенов. Если отсутствует, задаётся значение по умолчанию.
+    secret_key: str = Field("default_secret_key", env="SECRET_KEY")
 
-# Время жизни токена (в минутах)
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+    # Алгоритм, используемый для подписи JWT.
+    algorithm: str = "HS256"
+
+    # Время жизни токена в минутах.
+    access_token_expire_minutes: int = 30
+
+    @property
+    def access_token_expire(self) -> timedelta:
+        """
+        Возвращает время жизни токена в виде timedelta.
+        """
+        return timedelta(minutes=self.access_token_expire_minutes)
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8"
+    )
+
+
+# Инициализация настроек
+settings = Settings()
+

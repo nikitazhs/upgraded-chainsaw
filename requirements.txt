@@ -8,3 +8,4 @@ pytest
 passlib
 httpx
 python-multipart
+pydantic-settings
